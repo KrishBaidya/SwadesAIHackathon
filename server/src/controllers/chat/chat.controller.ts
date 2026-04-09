@@ -35,6 +35,26 @@ export const getConversation = (c: Context) => {
       ]
     }
   })
+  const id = c.req.param('id')
+  const conversation = conversations.find(conv => conv.id === id)
+
+  if (!conversation) {
+    return c.json({
+      success: false,
+      message: 'Conversation not found.'
+    }, 404)
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      ...conversation,
+      messages: [
+        { role: 'user', content: 'What are AI Agents?' },
+        { role: 'assistant', content: 'AI Agents are autonomous entities...' }
+      ]
+    }
+  })
 }
 
 export const deleteConversation = (c: Context) => {
