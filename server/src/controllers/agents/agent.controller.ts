@@ -9,7 +9,7 @@ const agents = [
   {
     id: '2',
     name: 'Support Agent',
-    capabilities: ['troubleshooting', 'faq-handling', 'ticket-creation']
+    capabilities: ['troubleshooting', 'faq-handling', 'ticket-creation', 'queue-conversation']
   },
   {
     id: '3',

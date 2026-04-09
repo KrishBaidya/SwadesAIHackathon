@@ -1,6 +1,7 @@
 import { Context } from 'hono'
+import { streamText } from 'hono/streaming'
 import { routerAgent } from '../../agents/router.agent'
-import { supportAgent, orderAgent, billingAgent, Message } from '../../agents/sub-agents'
+import { supportAgent, orderAgent, billingAgent } from '../../agents/sub-agents'
 
 const conversations = [
   { id: '1', title: 'Researching AI Agents', createdAt: new Date() },
@@ -15,26 +16,6 @@ export const getConversations = (c: Context) => {
 }
 
 export const getConversation = (c: Context) => {
-  const id = c.req.param('id')
-  const conversation = conversations.find(conv => conv.id === id)
-
-  if (!conversation) {
-    return c.json({
-      success: false,
-      message: 'Conversation not found.'
-    }, 404)
-  }
-
-  return c.json({
-    success: true,
-    data: {
-      ...conversation,
-      messages: [
-        { role: 'user', content: 'What are AI Agents?' },
-        { role: 'assistant', content: 'AI Agents are autonomous entities...' }
-      ]
-    }
-  })
   const id = c.req.param('id')
   const conversation = conversations.find(conv => conv.id === id)
 
@@ -76,21 +57,18 @@ export const deleteConversation = (c: Context) => {
 
 export const postChat = async (c: Context) => {
   const body = await c.req.json()
-  const { message, previousMessages = [] } = body
-
-  if (!message) {
-    return c.json({
-      success: false,
-      message: 'Message is required.'
-    }, 400)
+  
+  const messages = body.messages || []
+  if (messages.length === 0) {
+    return c.json({ success: false, message: 'Message is required.' }, 400)
   }
+
+  const latestMsg = messages[messages.length - 1]
+  const message = latestMsg.content
 
   const decision = await routerAgent(message)
 
-  const conversationMessages: Message[] = [
-    ...previousMessages,
-    { role: 'user', content: message }
-  ]
+  const conversationMessages: any[] = [...messages]
 
   let agentResponse;
   
@@ -112,10 +90,10 @@ export const postChat = async (c: Context) => {
       })
   }
 
-  return c.json({
-    success: true,
-    message: agentResponse.text,
-    decision,
-    history: agentResponse.steps
-  })
+  // Use hono/streaming helper to pipe the stream
+  return streamText(c, async (stream) => {
+    for await (const chunk of agentResponse.textStream) {
+      await stream.write(chunk);
+    }
+  });
 }
